@@ -1,7 +1,7 @@
 # Ingenieria de Software I
 Trabajo práctico especial - ADD
 
-# Integrantes:
+## Integrantes:
 - Abril Colonna
 - Constanza Etchepare
 - Agustina Gil
