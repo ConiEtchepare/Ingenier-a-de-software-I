@@ -1,0 +1,33 @@
+asyncapi: 2.6.0
+info:
+  title: Trotamundos Event Bus
+  version: 1.0.0
+  description: Contrato de mensajería asincrónica para el procesamiento de reservas en segundo plano.
+channels:
+  itinerarios.reservas.detectadas:
+    description: Tópico donde el Servicio de Ingesta publica reservas extraídas de los correos (RF-01).
+    publish:
+      message:
+        $ref: '#/components/messages/NuevaReservaDetectada'
+components:
+  messages:
+    NuevaReservaDetectada:
+      name: nuevaReservaDetectada
+      title: Nueva Reserva Detectada
+      summary: Evento emitido cuando el parser de correos extrae datos válidos.
+      payload:
+        type: object
+        properties:
+          idUsuario:
+            type: string
+            format: uuid
+          origenDatos:
+            type: string
+            example: "gmail_parser"
+          detalles:
+            type: object
+            properties:
+              proveedor:
+                type: string
+              codigoReserva:
+                type: string
