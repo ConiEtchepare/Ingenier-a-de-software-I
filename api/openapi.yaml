@@ -1,0 +1,53 @@
+openapi: 3.0.3
+info:
+  title: Trotamundos API Central
+  version: 1.0.0
+  description: API Gateway para la gestión de itinerarios y operaciones síncronas del usuario.
+servers:
+  - url: https://api.trotamundos.com/v1
+paths:
+  /itinerarios:
+    get:
+      summary: Obtiene los viajes activos del usuario (RF-05)
+      responses:
+        '200':
+          description: Lista de itinerarios consolidados.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Viaje'
+    post:
+      summary: Crea una reserva manual (RF-04)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservaManual'
+      responses:
+        '201':
+          description: Reserva agregada exitosamente al viaje.
+components:
+  schemas:
+    Viaje:
+      type: object
+      properties:
+        idViaje:
+          type: string
+          format: uuid
+        destino:
+          type: string
+        estado:
+          type: string
+          enum: [activo, archivado]
+    ReservaManual:
+      type: object
+      properties:
+        tipo:
+          type: string
+          enum: [vuelo, hotel, auto]
+        fechaInicio:
+          type: string
+          format: date-time
