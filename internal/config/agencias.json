@@ -1,0 +1,6 @@
+{
+  "estrategia": "Configuration-Time Binding (ADR-04)",
+  "agencias_activas": [
+    { "nombre": "AgenciaEjemplo", "url": "https://api.agenciaejemplo.com", "activa": true }
+  ]
+}
