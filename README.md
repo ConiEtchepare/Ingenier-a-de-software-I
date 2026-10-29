@@ -15,9 +15,9 @@ Nos enfocamos en diseñar la arquitectura del sistema paso a paso:
 5. **Prototipo de Viabilidad:** Armamos un esqueleto modular en Go y un API Gateway básico para verificar que los endpoints responden según el contrato.
 
 ## Prueba de prototipo
-Para levantar el API Gateway
+* Para levantar el API Gateway
 - go run cmd/apigateway/main.go
-Probar la respuesta del servidor
+* Probar la respuesta del servidor
 - curl http://localhost:8080/itinerarios
 
 ## Integrantes:
