@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Trotamundos – Prototipo ADD (Entrega 2)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f8fafc; color: #0f172a; margin: 0; padding: 24px; }
+    .layout { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+    h1 { margin-top: 0; font-size: 1.4rem; }
+    h2 { margin-top: 0; font-size: 1.1rem; color: #1e293b; }
+    .viaje { border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-bottom: 12px; cursor: pointer; }
+    .viaje.activo { border-color: #2563eb; background: #eff6ff; }
+    .reserva { font-size: 0.9rem; margin: 6px 0 0 12px; color: #334155; }
+    .chat-box { height: 340px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; background: #f1f5f9; display: flex; flex-direction: column; gap: 10px; }
+    .msg { max-width: 82%; padding: 10px 12px; border-radius: 10px; font-size: 0.9rem; white-space: pre-line; }
+    .msg.usuario { align-self: flex-end; background: #2563eb; color: #fff; }
+    .msg.asistente { align-self: flex-start; background: #fff; border: 1px solid #cbd5e1; }
+    .meta { font-size: 0.75rem; color: #64748b; margin-top: 4px; }
+    .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; font-weight: 600; background: #dbeafe; color: #1e40af; }
+    .badge.escalado { background: #fef3c7; color: #92400e; }
+    .input-row { display: flex; gap: 8px; margin-top: 12px; }
+    input { flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; }
+    button { padding: 10px 16px; border: none; border-radius: 8px; background: #2563eb; color: #fff; font-weight: 600; cursor: pointer; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .chip { background: #e2e8f0; color: #1e293b; font-size: 0.78rem; padding: 5px 10px; border-radius: 999px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <div class="card">
+      <h1>Panel de Viajes – Trotamundos</h1>
+      <p style="font-size:0.88rem;color:#475569;">Seleccioná un viaje activo para darle contexto al Asistente Virtual:</p>
+      <div id="lista-viajes"></div>
+    </div>
+
+    <div class="card">
+      <h2>Asistente Virtual de Primer Nivel (RF-08)</h2>
+      <div class="chat-box" id="chat-box">
+        <div class="msg asistente">¡Hola! Soy el asistente de Trotamundos. Podés consultarme el estado de tu viaje, pedir una reprogramación menor o derivar un problema complejo a tu agencia preferida.</div>
+      </div>
+      <div class="chips">
+        <span class="chip" onclick="enviarRapido('¿Cuál es el estado de mi vuelo?')">1. Consultar estado</span>
+        <span class="chip" onclick="enviarRapido('Necesito reprogramar el horario de check-in más tarde')">2. Reprogramación menor</span>
+        <span class="chip" onclick="enviarRapido('Perdí mi conexión por tormenta y necesito cancelar')">3. Caso complejo (Escalar)</span>
+      </div>
+      <div class="input-row">
+        <input id="input-msg" placeholder="Escribí tu consulta..." onkeydown="if(event.key==='Enter') enviarMensaje()" />
+        <button onclick="enviarMensaje()">Enviar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let viajeSeleccionado = "";
+    let sessionId = "";
+
+    async function cargarViajes() {
+      const res = await fetch('/itinerarios');
+      const viajes = await res.json();
+      if (!viajeSeleccionado && viajes.length > 0) viajeSeleccionado = viajes[0].idViaje;
+      const cont = document.getElementById('lista-viajes');
+      cont.innerHTML = viajes.map(v => `
+        <div class="viaje ${v.idViaje === viajeSeleccionado ? 'activo' : ''}" onclick="seleccionarViaje('${v.idViaje}')">
+          <strong>${v.destino}</strong> <span class="badge">${v.estado}</span>
+          <div class="meta">Agencia preferida: ${v.agenciaPreferida}</div>
+          ${v.reservas.map(r => `<div class="reserva">• <b>${r.codigo}</b>: ${r.detalle} — <i>${r.estadoReserva}</i></div>`).join('')}
+        </div>
+      `).join('');
+    }
+
+    function seleccionarViaje(id) {
+      viajeSeleccionado = id;
+      cargarViajes();
+    }
+
+    function enviarRapido(texto) {
+      document.getElementById('input-msg').value = texto;
+      enviarMensaje();
+    }
+
+    async function enviarMensaje() {
+      const input = document.getElementById('input-msg');
+      const texto = input.value.trim();
+      if (!texto) return;
+      input.value = '';
+
+      agregarBurbuja('usuario', texto);
+
+      const res = await fetch('/assistant/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, idViaje: viajeSeleccionado, mensaje: texto })
+      });
+      const data = await res.json();
+      sessionId = data.sessionId;
+
+      const claseBadge = data.accionEjecutada === 'ESCALADO_AGENCIA' ? 'badge escalado' : 'badge';
+      const meta = `<div class="meta"><span class="${claseBadge}">${data.accionEjecutada}</span> · Intención: ${data.intencionDetectada} (${(data.confianzaNLU*100).toFixed(0)}%)</div>`;
+      agregarBurbuja('asistente', data.respuesta, meta);
+
+      if (data.accionEjecutada === 'REPROGRAMACION_MENOR') {
+        cargarViajes();
+      }
+    }
+
+    function agregarBurbuja(emisor, texto, extraHtml = '') {
+      const box = document.getElementById('chat-box');
+      const div = document.createElement('div');
+      div.className = `msg ${emisor}`;
+      div.innerHTML = texto.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>') + extraHtml;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    cargarViajes();
+  </script>
+</body>
+</html>
