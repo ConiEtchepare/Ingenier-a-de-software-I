@@ -1,10 +1,14 @@
 openapi: 3.0.3
 info:
   title: Trotamundos API Central
-  version: 1.0.0
-  description: API Gateway para la gestión de itinerarios y operaciones síncronas del usuario.
+  version: 2.0.0
+  description: API Gateway para la gestión de itinerarios, derivación a agencias y Asistente Virtual de primer nivel (Iteraciones 1 a 6).
 servers:
+  - url: http://localhost:8080
+    description: Servidor local de prototipo
   - url: https://api.trotamundos.com/v1
+    description: Entorno productivo
+
 paths:
   /itinerarios:
     get:
@@ -29,8 +33,93 @@ paths:
       responses:
         '201':
           description: Reserva agregada exitosamente al viaje.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Viaje'
+
+  /itinerarios/{idViaje}/derivar:
+    post:
+      summary: Deriva un itinerario complejo a la agencia preferida del usuario (RF-06)
+      parameters:
+        - name: idViaje
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                motivo:
+                  type: string
+                resumenChat:
+                  type: string
+      responses:
+        '200':
+          description: Derivación confirmada por el Enrutador de Agencias.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultadoDerivacion'
+
+  /assistant/messages:
+    post:
+      summary: Envía un mensaje al Asistente Virtual de primer nivel (RF-08)
+      description: Procesa consultas de estado, reprogramaciones menores o escala casos complejos al Enrutador de Agencias.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MensajeUsuarioRequest'
+      responses:
+        '200':
+          description: Respuesta generada por el Orquestador Conversacional.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespuestaAsistente'
+
+  /assistant/sessions/{sessionId}:
+    get:
+      summary: Recupera el historial activo de una sesión conversacional desde la caché (ADR-11)
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Contexto activo de la conversación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SesionChat'
+        '404':
+          description: Sesión inexistente o expirada por TTL.
+
 components:
   schemas:
+    Reserva:
+      type: object
+      properties:
+        codigo:
+          type: string
+        tipo:
+          type: string
+          enum: [vuelo, hotel, auto]
+        detalle:
+          type: string
+        fechaHora:
+          type: string
+        estadoReserva:
+          type: string
+
     Viaje:
       type: object
       properties:
@@ -42,12 +131,90 @@ components:
         estado:
           type: string
           enum: [activo, archivado]
+        agenciaPreferida:
+          type: string
+        reservas:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reserva'
+
     ReservaManual:
       type: object
+      required: [destino, tipo, detalle, fechaInicio]
       properties:
+        destino:
+          type: string
         tipo:
           type: string
           enum: [vuelo, hotel, auto]
+        detalle:
+          type: string
         fechaInicio:
           type: string
           format: date-time
+
+    ResultadoDerivacion:
+      type: object
+      properties:
+        ticketAgencia:
+          type: string
+        agenciaDestino:
+          type: string
+        adaptadorUsado:
+          type: string
+        estado:
+          type: string
+        mensaje:
+          type: string
+
+    MensajeUsuarioRequest:
+      type: object
+      required: [mensaje]
+      properties:
+        sessionId:
+          type: string
+          description: Identificador de sesión opcional (se genera uno si viene vacío).
+        idViaje:
+          type: string
+          description: Contexto del viaje seleccionado en el panel.
+        mensaje:
+          type: string
+          example: "¿Cuál es el estado de mi vuelo a Madrid?"
+
+    RespuestaAsistente:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        intencionDetectada:
+          type: string
+        confianzaNLU:
+          type: number
+          format: float
+        accionEjecutada:
+          type: string
+          enum: [CONSULTA_RESUELTA, REPROGRAMACION_MENOR, ESCALADO_AGENCIA, ACLARACION]
+        respuesta:
+          type: string
+        derivacion:
+          $ref: '#/components/schemas/ResultadoDerivacion'
+
+    SesionChat:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        idViajeActivo:
+          type: string
+        mensajes:
+          type: array
+          items:
+            type: object
+            properties:
+              emisor:
+                type: string
+                enum: [usuario, asistente]
+              texto:
+                type: string
+              timestamp:
+                type: string
